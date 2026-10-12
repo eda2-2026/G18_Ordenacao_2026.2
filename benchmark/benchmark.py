@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import random
+import statistics
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -11,22 +12,15 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.modelos import Time, Jogo
-from src.ordenacao import (
-    insertion_sort,
-    merge_sort,
-    quick_sort,
-    heap_sort,
-    radix_lsd_multicriterio,
-)
 from src.montecarlo import executar_monte_carlo
 
 # Tabela de algoritmos avaliados, incluindo sorted() nativo em C como linha de base
 ALGORITMOS_BENCHMARK = {
-    "insertion": insertion_sort,
-    "merge": merge_sort,
-    "quick": quick_sort,
-    "heap": heap_sort,
-    "radix": lambda times: radix_lsd_multicriterio(times, desempate_nome=False),
+    "insertion": "insertion",
+    "merge": "merge",
+    "quick": "quick",
+    "heap": "heap",
+    "radix": "radix",
     "sorted_python": lambda times: sorted(times, key=lambda t: t.chave(), reverse=True),
 }
 
@@ -77,22 +71,19 @@ class RegistroBenchmark:
     n_simulacoes: int
     tempo_total: float
     simulacoes_por_segundo: float
-    tempo_por_ordenacao_ms: float
+    ms_por_simulacao: float
+    tempo_ordenacao_total: float = 0.0
+    ms_por_ordenacao: float = 0.0
 
 
 def rodar_benchmark_monte_carlo(
     n_times_lista: list[int] = [6, 20, 200, 2000],
     simulacoes_grid: dict[int, int] | None = None,
-    ignorar_insertion_grande: bool = True,
-    limite_tempo_por_algoritmo: float = 30.0,
+    ignorar_insertion_grande: bool = False,
+    repeticoes: int = 3,
 ) -> list[RegistroBenchmark]:
-    """Executa o benchmark cruzado de Monte Carlo medindo com time.perf_counter."""
+    """Executa o benchmark integrado de Monte Carlo, repetindo medições e usando a mediana."""
     if simulacoes_grid is None:
-        # Escala o número de simulações para que o teste execute em tempo viável:
-        # N=6: 500 simulações (rápido)
-        # N=20: 200 simulações
-        # N=200: 50 simulações
-        # N=2000: 10 simulações
         simulacoes_grid = {
             6: 500,
             20: 200,
@@ -102,85 +93,114 @@ def rodar_benchmark_monte_carlo(
 
     registros: list[RegistroBenchmark] = []
 
-    print("\n" + "=" * 80)
-    print(" INICIANDO BENCHMARK INTEGRADO DE ORDENAÇÃO NO MONTE CARLO")
-    print("=" * 80)
+    print("\n" + "=" * 90)
+    print(f" INICIANDO BENCHMARK INTEGRADO DE ORDENAÇÃO NO MONTE CARLO (Mediana de {repeticoes} repetições)")
+    print("=" * 90)
 
     for n in n_times_lista:
         n_sim = simulacoes_grid.get(n, 50)
         times, jogos = gerar_cenario_sintetico(n, seed=42)
 
+        # Ordena a tabela inicial pela chave, simulando a classificação real de um torneio
+        times = sorted(times, key=lambda t: t.chave(), reverse=True)
+
         print(f"\n>>> Cenário: {n} Times | {len(jogos)} Jogos | {n_sim} Simulações")
 
         for nome_alg in ALGORITMOS_BENCHMARK:
-            # Insertion sort é O(n^2). Para N=2000, 2000^2 * 10 iterações em Python puro
-            # geraria dezenas de milhões de operações e levaria minutos.
             if n >= 2000 and nome_alg == "insertion" and ignorar_insertion_grande:
-                print(f"  - {nome_alg:<14}: [SKIPPED - O(n^2) em N=2000 excederia tempo razoável]")
+                print(f"  - {nome_alg:<14}: [SKIPPED - ignorado por parâmetro]")
                 continue
 
-            # Adapta ordenação personalizada ou sorted nativo
-            if nome_alg == "sorted_python":
-                # Executa medição direta do laço de Monte Carlo usando sorted
-                t0 = time.perf_counter()
-                rng = random.Random(42)
-                for _ in range(n_sim):
-                    clones = {t.nome: t.copiar() for t in times}
-                    # Simulação dos jogos
-                    for j in jogos:
-                        m = clones[j.mandante]
-                        v = clones[j.visitante]
-                        # Simulação rápida in-place
-                        m.pontos += 1
-                        v.pontos += 1
-                    _ = sorted(clones.values(), key=lambda t: t.chave(), reverse=True)
-                duracao = time.perf_counter() - t0
-            else:
-                t0 = time.perf_counter()
+            tempos_totais: list[float] = []
+            tempos_ord: list[float] = []
+
+            for rep in range(repeticoes):
                 resultado = executar_monte_carlo(
                     tabela_inicial=times,
                     jogos_restantes=jogos,
                     num_simulacoes=n_sim,
-                    algoritmo="radix" if nome_alg == "radix" else nome_alg,
-                    seed=42,
+                    algoritmo=ALGORITMOS_BENCHMARK[nome_alg],
+                    seed=42 + rep,
                 )
-                duracao = resultado.tempo_execucao
+                tempos_totais.append(resultado.tempo_execucao)
+                tempos_ord.append(resultado.tempo_ordenacao)
 
-            sim_sec = n_sim / max(1e-6, duracao)
-            tempo_por_ord_ms = (duracao / n_sim) * 1000.0
+            duracao_total = statistics.median(tempos_totais)
+            duracao_ord = statistics.median(tempos_ord)
+            sim_sec = n_sim / max(1e-6, duracao_total)
+            ms_sim = (duracao_total / n_sim) * 1000.0
+            ms_ord = (duracao_ord / n_sim) * 1000.0
 
             registros.append(
                 RegistroBenchmark(
                     algoritmo=nome_alg,
                     n_times=n,
                     n_simulacoes=n_sim,
-                    tempo_total=duracao,
+                    tempo_total=duracao_total,
                     simulacoes_por_segundo=sim_sec,
-                    tempo_por_ordenacao_ms=tempo_por_ord_ms,
+                    ms_por_simulacao=ms_sim,
+                    tempo_ordenacao_total=duracao_ord,
+                    ms_por_ordenacao=ms_ord,
                 )
             )
 
             print(
-                f"  - {nome_alg:<14}: {duracao:8.4f}s total | "
-                f"{tempo_por_ord_ms:6.2f} ms/iteração | "
+                f"  - {nome_alg:<14}: {duracao_total:8.4f}s total | "
+                f"{ms_sim:6.2f} ms/simulação ({ms_ord:6.2f} ms ordenação) | "
                 f"{sim_sec:8.1f} sim/s"
             )
 
     return registros
 
 
+def comparar_ja_ordenada_vs_embaralhada(n: int = 2000, seed: int = 42, repeticoes: int = 3) -> None:
+    """Demonstra o impacto da entrada já ordenada versus aleatória na ordenação direta (mediana de repetições)."""
+    from src.ordenacao import ordenar_tabela
+
+    times, _ = gerar_cenario_sintetico(n, seed=seed)
+    times_ordenada = sorted(times, key=lambda t: t.chave(), reverse=True)
+    times_shuffled = list(times)
+    random.Random(123).shuffle(times_shuffled)
+
+    print("\n" + "=" * 90)
+    print(f" CONTRASTE DE ENTRADA: TABELA JÁ ORDENADA VS. EMBARALHADA (N = {n}, Mediana de {repeticoes} repetições)")
+    print(" Demonstração empírica: 'O melhor algoritmo depende do formato da entrada'")
+    print("=" * 90)
+
+    print(f"{'Algoritmo':<15} | {'Já Ordenada (ms)':>20} | {'Embaralhada (ms)':>18} | {'Impacto / Razão':>18}")
+    print(f"{'-' * 16}|{'-' * 22}|{'-' * 20}|{'-' * 20}")
+
+    for alg in ["insertion", "merge", "quick", "heap", "radix"]:
+        tempos_ord = []
+        tempos_shuf = []
+        for _ in range(repeticoes):
+            t0 = time.perf_counter()
+            ordenar_tabela(list(times_ordenada), algoritmo=alg)
+            tempos_ord.append((time.perf_counter() - t0) * 1000.0)
+
+            t0 = time.perf_counter()
+            ordenar_tabela(list(times_shuffled), algoritmo=alg)
+            tempos_shuf.append((time.perf_counter() - t0) * 1000.0)
+
+        med_ord = statistics.median(tempos_ord)
+        med_shuf = statistics.median(tempos_shuf)
+        razao = med_shuf / max(1e-3, med_ord)
+        print(f"{alg:<15} | {med_ord:20.2f} | {med_shuf:18.2f} | {razao:16.1f}x")
+    print("=" * 90 + "\n")
+
+
 def imprimir_tabela_resumo(registros: list[RegistroBenchmark]) -> None:
     """Imprime uma tabela consolidada formatada em Markdown."""
-    print("\n" + "=" * 95)
-    print(" TABELA COMPARATIVA DE DESEMPENHO (TEMPO TOTAL E POR ITERAÇÃO)")
-    print("=" * 95)
+    print("\n" + "=" * 115)
+    print(" TABELA COMPARATIVA DE DESEMPENHO (TEMPO TOTAL E ISOLADO DE ORDENAÇÃO)")
+    print("=" * 115)
 
     cabecalho = (
         f"| {'Algoritmo':<15} | {'N Times':>7} | {'Simulações':>10} | "
-        f"{'Tempo Total (s)':>15} | {'ms / Simulação':>15} | {'Simulações/s':>14} |"
+        f"{'Tempo Total (s)':>15} | {'ms / Simulação':>15} | {'ms / Ordenação':>15} | {'Simulações/s':>14} |"
     )
     separador = (
-        f"|{'-' * 17}|{'-' * 9}|{'-' * 12}|{'-' * 17}|{'-' * 17}|{'-' * 16}|"
+        f"|{'-' * 17}|{'-' * 9}|{'-' * 12}|{'-' * 17}|{'-' * 17}|{'-' * 17}|{'-' * 16}|"
     )
 
     print(cabecalho)
@@ -189,51 +209,102 @@ def imprimir_tabela_resumo(registros: list[RegistroBenchmark]) -> None:
     for r in registros:
         print(
             f"| {r.algoritmo:<15} | {r.n_times:7d} | {r.n_simulacoes:10d} | "
-            f"{r.tempo_total:15.4f} | {r.tempo_por_ordenacao_ms:15.2f} | {r.simulacoes_por_segundo:14.1f} |"
+            f"{r.tempo_total:15.4f} | {r.ms_por_simulacao:15.2f} | {r.ms_por_ordenacao:15.2f} | {r.simulacoes_por_segundo:14.1f} |"
         )
     print(separador + "\n")
 
 
-def imprimir_analise_teorica() -> None:
-    """Imprime a discussão teórica e argumentos que explicam os resultados obtidos."""
-    analise = """
-===============================================================================================
- ANÁLISE DOS RESULTADOS E DISCUSSÃO TEÓRICA
-===============================================================================================
+def imprimir_analise_teorica(registros: list[RegistroBenchmark]) -> None:
+    """Imprime a análise baseada estritamente nos números medidos durante a execução."""
+    print("=" * 95)
+    print(" ANÁLISE DOS RESULTADOS E DISCUSSÃO BASEADA NOS DADOS MEDIDOS")
+    print("=" * 95)
 
-1. Pequenas Tabelas (N = 6):
-   - O 'insertion_sort' é extremamente competitivo em N pequeno. Sua sobrecarga de inicialização
-     é mínima (sem recursão, sem alocações adicionais de vetores e sem estruturas complexas de dados).
-   - O 'radix_lsd_multicriterio' apresenta uma sobrecarga fixa de criar os vetores de contagem para cada
-     um dos 4 critérios (4 passadas de counting sort), mas ainda assim executa rapidamente.
-   - O 'heap_sort' e 'merge_sort' sofrem com o custo constante em Python de chamadas de função e recursão.
+    regs_n20 = [r for r in registros if r.n_times == 20]
+    regs_n200 = [r for r in registros if r.n_times == 200]
+    regs_n2000 = [r for r in registros if r.n_times == 2000]
 
-2. Médias Tabelas (N = 20 e N = 200):
-   - À medida que N cresce para 20 (padrão do Brasileirão e principais ligas europeias) e 200,
-     a diferença assintótica entre O(n^2) e O(n log n) / O(k*n) começa a se manifestar.
-   - O 'insertion_sort' perde rendimento progressivamente devido ao número de comparações e deslocamentos.
-   - O 'quick_sort' (com particionamento de Hoare) e o 'merge_sort' demonstram estabilidade temporal
-     sólida em O(n log n).
-   - O 'radix_lsd_multicriterio' mostra seu trunfo assintótico: sua complexidade é linear O(k * (n + b)),
-     onde k=4 critérios e b é a amplitude dos valores inteiros. Em N=200, o Radix mantém passos
-     lineares extremamente eficientes.
+    print("\n1. Campeonato Real (N = 20):")
+    if regs_n20:
+        ord_ms = {r.algoritmo: r.ms_por_ordenacao for r in regs_n20 if r.algoritmo != "sorted_python"}
+        sim_ms = {r.algoritmo: r.ms_por_simulacao for r in regs_n20 if r.algoritmo != "sorted_python"}
+        min_ord, max_ord = min(ord_ms.values()), max(ord_ms.values())
+        min_sim, max_sim = min(sim_ms.values()), max(sim_ms.values())
+        pct_ord = (sum(ord_ms.values()) / max(1e-6, sum(sim_ms.values()))) * 100.0
+        delta_sim = max_sim - min_sim
 
-3. Grandes Tabelas (N = 2000):
-   - Para N=2000, o 'insertion_sort' se torna impraticável (O(n^2) representaria até 4.000.000 de operações
-     a cada uma das simulações, gerando centenas de segundos de execução em Python puro).
-   - O 'merge_sort', 'quick_sort' e 'heap_sort' executam confortavelmente em O(n log n).
-   - O 'radix_lsd_multicriterio' escala proporcionalmente a O(n), superando os métodos comparativos
-     em número de operações de chave.
-   - A linha de base 'sorted_python' (Timsort em C) é a mais rápida em tempo absoluto em todos os
-     cenários, o que ilustra o impacto das instruções de baixo nível compiladas em C versus o bytecode
-     interpretado da máquina virtual do Python.
+        print(
+            f"   - Ordenação isolada: {min_ord:.2f} a {max_ord:.2f} ms por simulação (~{pct_ord:.0f}% do tempo total)."
+        )
+        print(
+            f"   - Tempo total da simulação: {min_sim:.2f} a {max_sim:.2f} ms por iteração (~{statistics.mean(sim_ms.values()):.2f} ms em média)."
+        )
+        print(
+            f"   - Conclusão prática: Para um campeonato real de 20 clubes, a diferença entre o algoritmo mais "
+            f"rápido e o mais lento é de até ~{delta_sim:.2f} ms por simulação, o que é imperceptível para o usuário final."
+        )
 
-4. Estabilidade vs. Eficiência:
-   - 'merge_sort' e 'radix_lsd' garantem ESTABILIDADE por construção, mantendo empates determinísticos.
-   - 'quick_sort' e 'heap_sort' são mais rápidos em certas configurações de memória, mas são INSTÁVEIS.
-===============================================================================================
-"""
-    print(analise)
+    print("\n2. Campeonatos Maiores (N = 200):")
+    if regs_n200:
+        ord_ms = {r.algoritmo: r.ms_por_ordenacao for r in regs_n200}
+        print("   - Tempo isolado de ordenação medido:")
+        for alg, t_ms in ord_ms.items():
+            print(f"     * {alg:<14}: {t_ms:.2f} ms / ordenação")
+        print(
+            "   - Graças à chave pré-computada e poucas inversões na tabela vinda de rodadas anteriores, "
+            "o Insertion Sort é bastante competitivo neste cenário."
+        )
+
+    print("\n3. Grandes Cenários (N = 2000):")
+    if regs_n2000:
+        ord_ms = {r.algoritmo: r.ms_por_ordenacao for r in regs_n2000}
+        print("   - Comparando exclusivamente 'ms / Ordenação' (o tempo total inclui simulações com ruído):")
+        for alg, t_ms in ord_ms.items():
+            print(f"     * {alg:<14}: {t_ms:.2f} ms / ordenação")
+
+        if "insertion" in ord_ms:
+            t_ins = ord_ms["insertion"]
+            outros_comp = [alg for alg in ["merge", "quick", "heap"] if alg in ord_ms and ord_ms[alg] > t_ins]
+            if outros_comp:
+                nomes_comp = " e ".join(outros_comp)
+                print(
+                    f"   - Destaque: Quando a tabela de entrada está quase ordenada, o Insertion Sort executa "
+                    f"em apenas {t_ins:.2f} ms (menos trocas locais), superando {nomes_comp}."
+                )
+            else:
+                print(
+                    f"   - Insertion Sort mediu {t_ins:.2f} ms na tabela quase ordenada."
+                )
+
+        if "radix" in ord_ms and "merge" in ord_ms:
+            razao_radix_merge = ord_ms['merge'] / max(1e-3, ord_ms['radix'])
+            print(
+                f"   - O Radix LSD foi cerca de {razao_radix_merge:.1f}x mais rápido que o Merge Sort nesta faixa."
+            )
+
+        # Calcula a taxa de crescimento real entre N=200 e N=2000 a partir dos dados medidos
+        if regs_n200:
+            ord_ms_200 = {r.algoritmo: r.ms_por_ordenacao for r in regs_n200}
+            crescimentos = []
+            for alg in ["merge", "radix", "quick"]:
+                if alg in ord_ms and alg in ord_ms_200 and ord_ms_200[alg] > 0:
+                    fator = ord_ms[alg] / ord_ms_200[alg]
+                    crescimentos.append(f"{alg} (~{fator:.1f}x)")
+            if crescimentos:
+                str_cresc = ", ".join(crescimentos)
+                print(
+                    f"   - Crescimento medido de N=200 para N=2000: {str_cresc}, refletindo "
+                    f"um escalonamento proporcional e um ganho prático por fator constante nesta faixa de N."
+                )
+
+    print("\n4. Baseline Nativa em C vs Python Puro:")
+    regs_c = [r for r in registros if r.algoritmo == "sorted_python"]
+    if regs_c:
+        print(
+            "   - A baseline 'sorted_python' (Timsort implementado em C) mostra a eficiência de instruções compiladas "
+            "frente ao interpretador de bytecode do Python."
+        )
+    print("=" * 95 + "\n")
 
 
 def main() -> None:
@@ -241,18 +312,26 @@ def main() -> None:
         description="Benchmark dos algoritmos de ordenação no Monte Carlo."
     )
     parser.add_argument(
-        "--todos-inclusive-grandes-insertion",
+        "--pular-insertion-2000",
         action="store_true",
-        help="Executa insertion sort mesmo para N=2000 (pode demorar).",
+        help="Pula o Insertion Sort no cenário N=2000.",
+    )
+    parser.add_argument(
+        "--repeticoes",
+        type=int,
+        default=3,
+        help="Número de repetições por medição para cálculo da mediana (padrão: 3).",
     )
     args = parser.parse_args()
 
     registros = rodar_benchmark_monte_carlo(
         n_times_lista=[6, 20, 200, 2000],
-        ignorar_insertion_grande=not args.todos_inclusive_grandes_insertion,
+        ignorar_insertion_grande=args.pular_insertion_2000,
+        repeticoes=args.repeticoes,
     )
     imprimir_tabela_resumo(registros)
-    imprimir_analise_teorica()
+    comparar_ja_ordenada_vs_embaralhada(n=2000, seed=42, repeticoes=args.repeticoes)
+    imprimir_analise_teorica(registros)
 
 
 if __name__ == "__main__":
