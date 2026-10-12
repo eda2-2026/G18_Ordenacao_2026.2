@@ -59,13 +59,28 @@ def test_criterio_invalido():
 def test_carregar_dados_csv():
     base_dir = Path(__file__).resolve().parent.parent / "data"
     times = carregar_classificacao(base_dir / "classificacao.csv")
-    assert len(times) == 6
-    assert times[0].nome == "Aurora FC"
-    assert times[0].pontos == 10
-    assert times[0].saldo == 5
+    assert len(times) == 20
+    assert times[0].nome == "Palmeiras"
+    assert times[0].pontos == 63
+    assert times[0].jogos == 35
+    assert times[0].saldo == 26
 
     jogos = carregar_jogos(base_dir / "jogos_restantes.csv")
-    assert len(jogos) == 6
+    assert len(jogos) == 30
     assert isinstance(jogos[0], Jogo)
-    assert jogos[0].mandante == "Aurora FC"
-    assert jogos[0].visitante == "Dragao AC"
+    assert jogos[0].mandante == "Flamengo"
+    assert jogos[0].visitante == "Atlético-MG"
+
+
+def test_validar_jogos_time_inexistente():
+    times = [Time("Palmeiras"), Time("Flamengo")]
+    jogos_invalidos = [Jogo("Time Fantasma", "Flamengo")]
+    from src.modelos import validar_jogos
+
+    with pytest.raises(ValueError, match="Time mandante 'Time Fantasma'"):
+        validar_jogos(times, jogos_invalidos)
+
+    jogos_invalidos_visitante = [Jogo("Palmeiras", "Outro Inexistente")]
+    with pytest.raises(ValueError, match="Time visitante 'Outro Inexistente'"):
+        validar_jogos(times, jogos_invalidos_visitante)
+

@@ -80,7 +80,7 @@ def test_formatacao_tabela(dados_reais):
     resultado = executar_monte_carlo(times, jogos, num_simulacoes=50, seed=42)
     texto = formatar_tabela_probabilidades(resultado)
     assert "TABELA DE PROBABILIDADES ESTIMADAS VIA MONTE CARLO" in texto
-    assert "Aurora FC" in texto
+    assert "Palmeiras" in texto
     assert "MERGE" in texto
 
 
@@ -89,5 +89,49 @@ def test_cli_parser():
     args = parser.parse_args(["--algoritmo", "radix", "--simulacoes", "500"])
     assert args.algoritmo == "radix"
     assert args.simulacoes == 500
-    assert args.top_continental == 2
-    assert args.rebaixamento == 2
+    assert args.top_continental == 6
+    assert args.rebaixamento == 4
+
+
+def test_monte_carlo_mesmo_resultado_entre_algoritmos(dados_reais):
+    """Garante que com a mesma semente, todos os 5 algoritmos geram exatamente as mesmas probabilidades."""
+    times, jogos = dados_reais
+    resultados = {}
+    for alg in ["insertion", "merge", "quick", "heap", "radix"]:
+        res = executar_monte_carlo(
+            tabela_inicial=times,
+            jogos_restantes=jogos,
+            num_simulacoes=200,
+            algoritmo=alg,
+            seed=7,
+        )
+        resultados[alg] = [
+            (
+                e.nome,
+                e.prob_titulo,
+                e.prob_continental,
+                e.prob_rebaixamento,
+                round(e.posicao_media, 4),
+            )
+            for e in res.estatisticas
+        ]
+
+    gabarito = resultados["merge"]
+    for alg in ["insertion", "quick", "heap", "radix"]:
+        assert resultados[alg] == gabarito
+
+
+def test_monte_carlo_nao_altera_tabela_original(dados_reais):
+    """Garante que a tabela inicial passada não sofre mutações durante o Monte Carlo."""
+    times, jogos = dados_reais
+    estado_anterior = [
+        (t.nome, t.pontos, t.vitorias, t.gols_pro, t.gols_contra, t.saldo)
+        for t in times
+    ]
+    executar_monte_carlo(times, jogos, num_simulacoes=100, seed=42)
+    estado_posterior = [
+        (t.nome, t.pontos, t.vitorias, t.gols_pro, t.gols_contra, t.saldo)
+        for t in times
+    ]
+    assert estado_anterior == estado_posterior
+

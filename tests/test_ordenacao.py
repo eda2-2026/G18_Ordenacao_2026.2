@@ -194,3 +194,27 @@ def test_algoritmo_invalido():
     """Garante erro explicativo para algoritmo não suportado."""
     with pytest.raises(ValueError, match="Algoritmo desconhecido"):
         ordenar_tabela([], algoritmo="inexistente")
+
+
+def test_cinco_algoritmos_identicos_muitos_empates():
+    """Valida que todos os 5 algoritmos devolvem a mesma lista em dados com muitos empates (200 times com valores 0 a 3)."""
+    rng = random.Random(123)
+    times = [
+        Time(
+            nome=f"Time_{i:03d}",
+            pontos=rng.randint(0, 3),
+            vitorias=rng.randint(0, 3),
+            gols_pro=rng.randint(0, 3),
+            gols_contra=rng.randint(0, 3),
+        )
+        for i in range(200)
+    ]
+
+    res_insertion = ordenar_tabela(times, "insertion")
+    res_merge = ordenar_tabela(times, "merge")
+    res_quick = ordenar_tabela(times, "quick")
+    res_heap = ordenar_tabela(times, "heap")
+    res_radix = ordenar_tabela(times, "radix")
+
+    assert res_insertion == res_merge == res_quick == res_heap == res_radix
+
