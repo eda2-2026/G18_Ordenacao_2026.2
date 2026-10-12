@@ -26,9 +26,8 @@ def gabarito():
     return lambda times: sorted(times, key=lambda t: t.chave(), reverse=True)
 
 
-# -----------------------------------------------------------------------------
+
 # Testes de Casos Limítrofes (Lista Vazia e Um Elemento)
-# -----------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("algoritmo", ["insertion", "merge", "quick", "heap", "radix"])
@@ -48,9 +47,9 @@ def test_um_elemento(algoritmo: str):
     assert resultado[0].nome == "Unico FC"
 
 
-# -----------------------------------------------------------------------------
+
 # Testes com Lista de Amostra Padrão (Sem empates totais)
-# -----------------------------------------------------------------------------
+
 
 
 def test_ordenacao_estavel_amostra(times_amostra, gabarito):
@@ -74,9 +73,8 @@ def test_ordenacao_instavel_amostra(times_amostra, gabarito):
     assert [t.chave() for t in res_heap] == esperado_chaves
 
 
-# -----------------------------------------------------------------------------
+
 # Testes com Empates Parciais e Saldo Negativo
-# -----------------------------------------------------------------------------
 
 
 def test_empates_parciais_e_saldo_negativo(times_com_empates, gabarito):
@@ -98,9 +96,8 @@ def test_empates_parciais_e_saldo_negativo(times_com_empates, gabarito):
     assert [t.chave() for t in res_heap] == esperado_chaves
 
 
-# -----------------------------------------------------------------------------
+
 # Testes com Empates Totais e Desempate por Nome
-# -----------------------------------------------------------------------------
 
 
 def test_empates_totais_chaves():
@@ -130,9 +127,8 @@ def test_radix_desempate_deterministico_por_nome():
     assert nomes_ordenados == ["Alfa FC", "Beta FC", "Zeta FC"]
 
 
-# -----------------------------------------------------------------------------
+
 # Testes com Listas Já Ordenadas e Invertidas
-# -----------------------------------------------------------------------------
 
 
 def test_lista_ja_ordenada(times_amostra, gabarito):
@@ -160,9 +156,8 @@ def test_lista_invertida(times_amostra, gabarito):
     assert [t.chave() for t in radix_lsd_multicriterio(invertida, desempate_nome=False)] == esperado_chaves
 
 
-# -----------------------------------------------------------------------------
+
 # Teste de Robustez com Massa de Dados Aleatória
-# -----------------------------------------------------------------------------
 
 
 def test_massa_aleatoria_50_times(gabarito):

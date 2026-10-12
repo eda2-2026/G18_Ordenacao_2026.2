@@ -1,8 +1,4 @@
-"""Implementações próprias de algoritmos de ordenação para a tabela de classificação.
 
-Todas as funções ordenam da maior para a menor chave (ordem decrescente),
-sem utilizar as funções embutidas sorted() ou list.sort().
-"""
 
 from __future__ import annotations
 
@@ -22,14 +18,7 @@ def insertion_sort(
     key: Callable[[Any], Any] | None = None,
     reverse: bool = True,
 ) -> list[Any]:
-    """Ordena uma lista utilizando Insertion Sort (Estável).
-    
-    Complexidade:
-        Tempo: O(n) no melhor caso (já ordenado), O(n^2) no pior e médio caso.
-        Espaço: O(1) de memória auxiliar.
-    Estabilidade:
-        Garantida pela desigualdade estrita durante o deslocamento.
-    """
+ 
     arr = list(lista)
     extrair = key if key is not None else _obter_chave_padrao
 
@@ -59,15 +48,7 @@ def merge_sort(
     key: Callable[[Any], Any] | None = None,
     reverse: bool = True,
 ) -> list[Any]:
-    """Ordena uma lista utilizando Merge Sort (Estável).
-    
-    Complexidade:
-        Tempo: O(n log n) em todos os casos (divisão e conquista).
-        Espaço: O(n) de memória auxiliar para intercalação.
-    Estabilidade:
-        Garantida pela preferência dada ao elemento da partição esquerda
-        em caso de empate (>= em decrescente, <= em crescente).
-    """
+   
     if len(lista) <= 1:
         return list(lista)
 
@@ -179,21 +160,7 @@ def heap_sort(
     key: Callable[[Any], Any] | None = None,
     reverse: bool = True,
 ) -> list[Any]:
-    """Ordena uma lista utilizando Heap Sort (Instável).
     
-    Para ordenação DECRESCENTE (reverse=True):
-        Constrói um MIN-HEAP in-place.
-        O menor elemento fica na raiz (índice 0). Ao trocá-lo com a última
-        posição da heap e diminuir o tamanho da heap, os menores valores
-        são depositados no fim do array.
-        Ao final, o array resultante fica em ordem decrescente.
-    
-    Complexidade:
-        Tempo: O(n log n) em todos os casos (construção O(n) + n extrações O(log n)).
-        Espaço: O(1) de memória auxiliar.
-    Estabilidade:
-        Instável devido à estrutura e trocas da heap.
-    """
     arr = list(lista)
     n = len(arr)
     if n <= 1:
@@ -256,37 +223,7 @@ def radix_lsd_multicriterio(
     criterios: Sequence[str] | None = None,
     desempate_nome: bool = True,
 ) -> list[Time]:
-    """Ordena times via Radix Sort LSD Multicritério com Counting Sort estável.
-
-    Mecânica do Algoritmo:
-    1. Cada critério atua como um "dígito" de significância.
-    2. A ordenação é executada do critério MENOS importante para o MAIS importante
-       (LSD - Least Significant Digit).
-    3. Como cada passada utiliza Counting Sort ESTÁVEL, a ordem definida pelos
-       critérios anteriores é preservada quando há empate no critério atual.
-
-    Tratamento de Saldo Negativo (Deslocamento / Offset):
-        O saldo de gols pode assumir valores negativos. O counting sort requer
-        índices inteiros não-negativos. Para cada passada:
-        - Calculamos min_v = min(valores) e max_v = max(valores).
-        - Deslocamos os valores subtraindo min_v: valor_deslocado = valor - min_v.
-        - Isso mapeia com segurança qualquer faixa inteira para [0, max_v - min_v].
-
-    Tratamento da Ordem Decrescente:
-        Seja M = max_v - min_v.
-        Em vez de ordenar crescentemente pelo valor deslocado, invertemos a chave
-        para cada time: inv = M - (valor - min_v).
-        - O maior valor original torna-se inv = 0 (ocupará as primeiras posições).
-        - O menor valor original torna-se inv = M (ocupará as últimas posições).
-        Aplicar o Counting Sort estável tradicional sobre 'inv' produz a ordenação
-        estável decrescente desejada.
-
-    Desempate Final Determinístico por Nome:
-        Se desempate_nome=True, uma ordenação estável preliminar alfabética (A-Z)
-        pelo nome do time é realizada antes das passadas numéricas. Como todas as
-        passadas subsequentes de Counting Sort são estáveis, times empatados em
-        todos os critérios numéricos mantêm rigorosamente a ordem alfabética.
-    """
+    
     arr = list(lista)
     if len(arr) <= 1:
         return arr

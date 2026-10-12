@@ -44,17 +44,7 @@ class ResultadoJogo:
 
 
 def poisson_knuth(lam: float, rng: Optional[random.Random] = None) -> int:
-    """Amostra uma variável aleatória de Poisson com parâmetro lam (lambda).
-
-    Implementação manual utilizando o algoritmo clássico de Donald Knuth (1969):
-        1. L = exp(-lam), k = 0, p = 1.0
-        2. Enquanto p > L:
-               k = k + 1
-               p = p * U (onde U ~ Uniforme(0, 1))
-        3. Retorna k - 1
-    
-    Se lam <= 0, retorna 0.
-    """
+   
     if lam <= 0.0:
         return 0
 
