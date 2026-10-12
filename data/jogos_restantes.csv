@@ -1,7 +1,31 @@
 mandante,visitante
-Aurora FC,Dragao AC
-Borborema SC,Canario EC
-Esperanca FC,Fenix SC
-Fenix SC,Aurora FC
-Canario EC,Esperanca FC
-Dragao AC,Borborema SC
+Flamengo,Atlético-MG
+Palmeiras,América-MG
+Santos,Fluminense
+Vasco da Gama,Corinthians
+Bahia,São Paulo
+Cuiabá,Internacional
+Coritiba,Botafogo
+Grêmio,Goiás
+Cruzeiro,Athletico-PR
+Red Bull Bragantino,Fortaleza
+Corinthians,Internacional
+Atlético-MG,São Paulo
+Flamengo,Cuiabá
+Palmeiras,Fluminense
+Botafogo,Cruzeiro
+Red Bull Bragantino,Coritiba
+Grêmio,Vasco da Gama
+Athletico-PR,Santos
+Fortaleza,Goiás
+América-MG,Bahia
+Goiás,América-MG
+Fluminense,Grêmio
+Vasco da Gama,Red Bull Bragantino
+São Paulo,Flamengo
+Santos,Fortaleza
+Internacional,Botafogo
+Coritiba,Corinthians
+Bahia,Atlético-MG
+Cruzeiro,Palmeiras
+Cuiabá,Athletico-PR

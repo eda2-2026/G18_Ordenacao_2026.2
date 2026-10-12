@@ -34,6 +34,7 @@ class Time:
     gols_contra: int = 0
     ataque: float = 1.0
     defesa: float = 1.0
+    jogos: int = 0
 
     @property
     def saldo(self) -> int:
@@ -66,6 +67,7 @@ class Time:
             gols_contra=self.gols_contra,
             ataque=self.ataque,
             defesa=self.defesa,
+            jogos=self.jogos,
         )
 
 
@@ -77,13 +79,33 @@ class Jogo:
     visitante: str
 
 
-def carregar_classificacao(caminho_csv: str | Path) -> list[Time]:
+def calcular_forcas_ataque_defesa(times: Sequence[Time]) -> None:
+    """Calcula as forças de ataque e defesa dos times a partir dos dados do campeonato:
+    gols pró e contra por jogo divididos pela média de gols por jogo da liga.
+    """
+    total_jogos = sum(t.jogos for t in times)
+    total_gols = sum(t.gols_pro for t in times)
+    if total_jogos == 0 or total_gols == 0:
+        return
+    media_gols_por_jogo_liga = total_gols / total_jogos
+
+    for t in times:
+        if t.jogos > 0:
+            t.ataque = round((t.gols_pro / t.jogos) / media_gols_por_jogo_liga, 4)
+            t.defesa = round((t.gols_contra / t.jogos) / media_gols_por_jogo_liga, 4)
+
+
+def carregar_classificacao(
+    caminho_csv: str | Path,
+    recalcular_forcas: bool = True,
+) -> list[Time]:
     """Carrega a tabela de classificação a partir de um arquivo CSV."""
     caminho = Path(caminho_csv)
     times: list[Time] = []
     with caminho.open(mode="r", encoding="utf-8") as f:
         leitor = csv.DictReader(f)
         for linha in leitor:
+            jogos = int(linha["jogos"]) if "jogos" in linha and linha["jogos"] else 0
             times.append(
                 Time(
                     nome=linha["nome"].strip(),
@@ -93,8 +115,23 @@ def carregar_classificacao(caminho_csv: str | Path) -> list[Time]:
                     gols_contra=int(linha["gols_contra"]),
                     ataque=float(linha.get("ataque", 1.0)),
                     defesa=float(linha.get("defesa", 1.0)),
+                    jogos=jogos,
                 )
             )
+
+    total_gp = sum(t.gols_pro for t in times)
+    total_gc = sum(t.gols_contra for t in times)
+    if total_gp != total_gc:
+        import warnings
+        warnings.warn(
+            f"Inconsistência nos dados de gols: total gols pró ({total_gp}) "
+            f"!= total gols contra ({total_gc}).",
+            UserWarning,
+            stacklevel=2,
+        )
+
+    if recalcular_forcas and any(t.jogos > 0 for t in times):
+        calcular_forcas_ataque_defesa(times)
     return times
 
 
@@ -112,3 +149,19 @@ def carregar_jogos(caminho_csv: str | Path) -> list[Jogo]:
                 )
             )
     return jogos
+
+
+def validar_jogos(times: Sequence[Time], jogos: Sequence[Jogo]) -> None:
+    """Valida se todos os clubes dos confrontos constam na tabela de classificação."""
+    nomes_cadastrados = {t.nome for t in times}
+    for j in jogos:
+        if j.mandante not in nomes_cadastrados:
+            raise ValueError(
+                f"Time mandante '{j.mandante}' no jogo contra '{j.visitante}' "
+                f"não consta na tabela de classificação."
+            )
+        if j.visitante not in nomes_cadastrados:
+            raise ValueError(
+                f"Time visitante '{j.visitante}' no jogo contra '{j.mandante}' "
+                f"não consta na tabela de classificação."
+            )

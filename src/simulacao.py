@@ -44,7 +44,9 @@ class ResultadoJogo:
 
 
 def poisson_knuth(lam: float, rng: Optional[random.Random] = None) -> int:
-   
+    """Gera número de gols por amostragem da distribuição de Poisson (algoritmo clássico de Knuth).
+    Complexidade: O(lambda) esperado no tempo e O(1) em memória auxiliar.
+    """
     if lam <= 0.0:
         return 0
 

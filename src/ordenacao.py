@@ -1,4 +1,4 @@
-
+"""Módulo de ordenação da tabela de classificação (Insertion, Merge, Quick, Heap e Radix LSD)."""
 
 from __future__ import annotations
 
@@ -18,7 +18,10 @@ def insertion_sort(
     key: Callable[[Any], Any] | None = None,
     reverse: bool = True,
 ) -> list[Any]:
- 
+    """Ordena elementos inserindo cada item na posição correta do prefixo já ordenado.
+    Complexidade: O(n) melhor caso, O(n²) médio e pior caso; O(1) de memória auxiliar.
+    Estabilidade: Estável.
+    """
     arr = list(lista)
     extrair = key if key is not None else _obter_chave_padrao
 
@@ -48,7 +51,10 @@ def merge_sort(
     key: Callable[[Any], Any] | None = None,
     reverse: bool = True,
 ) -> list[Any]:
-   
+    """Ordena por divisão e conquista, dividindo recursivamente ao meio e intercalando.
+    Complexidade: O(n log n) em todos os casos; O(n) de memória auxiliar.
+    Estabilidade: Estável.
+    """
     if len(lista) <= 1:
         return list(lista)
 
@@ -160,7 +166,10 @@ def heap_sort(
     key: Callable[[Any], Any] | None = None,
     reverse: bool = True,
 ) -> list[Any]:
-    
+    """Ordena construindo uma min-heap (para ordem decrescente) e extraindo a raiz sucessivamente.
+    Complexidade: O(n log n) em todos os casos; O(1) de memória auxiliar.
+    Estabilidade: Instável.
+    """
     arr = list(lista)
     n = len(arr)
     if n <= 1:
@@ -221,9 +230,12 @@ def heap_sort(
 def radix_lsd_multicriterio(
     lista: Sequence[Time],
     criterios: Sequence[str] | None = None,
-    desempate_nome: bool = True,
+    desempate_nome: bool = False,
 ) -> list[Time]:
-    
+    """Ordena multicritérios via Counting Sort estável do menos ao mais importante (LSD).
+    Complexidade: O(k * (n + b)), onde k é o nº de critérios e b a amplitude; O(n + b) auxiliar.
+    Estabilidade: Estável.
+    """
     arr = list(lista)
     if len(arr) <= 1:
         return arr
@@ -308,4 +320,8 @@ def ordenar_tabela(
             f"Algoritmo desconhecido: '{algoritmo}'. Opções válidas: {list(ALGORITMOS.keys())}"
         )
     funcao = ALGORITMOS[alg]
+    if alg != "radix" and "key" not in kwargs:
+        # chave calculada uma vez + posição original como último critério
+        chaves = {id(t): t.chave() + (-i,) for i, t in enumerate(times)}
+        kwargs["key"] = lambda t: chaves[id(t)]
     return funcao(times, **kwargs)

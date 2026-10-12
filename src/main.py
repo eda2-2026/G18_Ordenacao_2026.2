@@ -42,7 +42,8 @@ def formatar_tabela_probabilidades(resultado) -> str:
     linhas.append(
         f"Algoritmo: {resultado.algoritmo.upper()} | "
         f"Simulações: {resultado.num_simulacoes:,} | "
-        f"Tempo: {resultado.tempo_execucao:.4f}s | "
+        f"Tempo Total: {resultado.tempo_execucao:.4f}s | "
+        f"Tempo Ord.: {resultado.tempo_ordenacao:.4f}s | "
         f"Taxa: {resultado.num_simulacoes / max(1e-6, resultado.tempo_execucao):,.0f} sim/s"
     )
     linhas.append(
@@ -82,13 +83,13 @@ def construir_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--top-continental",
         type=int,
-        default=2,
+        default=6,
         help="Quantidade de equipes que se classificam para vagas continentais (Top K).",
     )
     parser.add_argument(
         "--rebaixamento",
         type=int,
-        default=2,
+        default=4,
         help="Quantidade de equipes que são rebaixadas (Últimos R).",
     )
     parser.add_argument(
@@ -123,15 +124,19 @@ def main() -> None:
         f"Iniciando simulação com {len(times)} times e {len(jogos)} jogos restantes..."
     )
 
-    resultado = executar_monte_carlo(
-        tabela_inicial=times,
-        jogos_restantes=jogos,
-        num_simulacoes=args.simulacoes,
-        algoritmo=args.algoritmo,
-        top_continental=args.top_continental,
-        rebaixamento_n=args.rebaixamento,
-        seed=args.seed,
-    )
+    try:
+        resultado = executar_monte_carlo(
+            tabela_inicial=times,
+            jogos_restantes=jogos,
+            num_simulacoes=args.simulacoes,
+            algoritmo=args.algoritmo,
+            top_continental=args.top_continental,
+            rebaixamento_n=args.rebaixamento,
+            seed=args.seed,
+        )
+    except ValueError as e:
+        print(f"Erro na simulação: {e}", file=sys.stderr)
+        sys.exit(1)
 
     tabela_texto = formatar_tabela_probabilidades(resultado)
     print(tabela_texto)
