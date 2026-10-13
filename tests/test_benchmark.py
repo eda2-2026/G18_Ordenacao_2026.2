@@ -28,3 +28,22 @@ def test_rodar_benchmark_resumido():
     assert "heap" in algs
     assert "radix" in algs
     assert "sorted_python" in algs
+
+
+def test_comparar_ja_ordenada_vs_embaralhada_com_repeticoes(capsys):
+    from benchmark.benchmark import (
+        comparar_ja_ordenada_vs_embaralhada,
+        comparar_quase_ordenada_vs_embaralhada,
+    )
+    # Executa com N pequeno e 3 repetições
+    comparar_ja_ordenada_vs_embaralhada(n=10, seed=42, repeticoes=3)
+    out1 = capsys.readouterr().out
+    assert "CONTRASTE DE ENTRADA" in out1
+    assert "Mediana de 3 repetições" in out1
+    assert "insertion" in out1
+
+    # Testa o alias de retrocompatibilidade
+    comparar_quase_ordenada_vs_embaralhada(n=10, seed=42, repeticoes=3)
+    out2 = capsys.readouterr().out
+    assert "CONTRASTE DE ENTRADA" in out2
+

@@ -19,7 +19,11 @@ Link a ser adicionado.
 
 O sistema resolve um problema clássico de torcedores e analistas esportivos: dada a tabela de classificação atual e os confrontos restantes da temporada, estimar as probabilidades de cada time ser campeão, classificar-se para competições continentais ou sofrer rebaixamento.
 
-A base padrão do projeto utiliza dados oficiais do **Campeonato Brasileiro Série A 2023** após a 35ª rodada (20 clubes, 35 partidas disputadas por equipe, totalizando exatamente 867 gols pró e 867 gols contra em equilíbrio matemático estrito, restando 30 jogos correspondentes às rodadas 36, 37 e 38).
+A base padrão do projeto utiliza dados do **Campeonato Brasileiro Série A 2023** após a 35ª rodada, encerrada em 27 de novembro de 2023 (fonte: portal oficial da Confederação Brasileira de Futebol — CBF, cruzado e verificado com GE Globo; data de consulta: 28/11/2023, checagem em 12/10/2026). São 20 clubes com 35 partidas disputadas por equipe, totalizando 867 gols pró = 867 gols contra, restando 30 jogos correspondentes às rodadas 36, 37 e 38.
+
+As faixas padrão de classificação adotadas no sistema seguem estritamente o **Regulamento Específico da Competição (REC - Brasileirão Série A 2023)** da CBF:
+- **Top 6 para Copa CONMEBOL Libertadores (G-6):** Estabelecido no Art. 6º do REC (1º ao 4º colocados na Fase de Grupos, 5º e 6º nas Fases Preliminares).
+- **Z-4 para Descenso (Rebaixamento):** Estabelecido no Art. 7º do REC (os 4 últimos colocados, 17º ao 20º, descenderão para a Série B de 2024).
 
 Como o saldo de gols e os gols pró atuam como critérios de desempate essenciais no regulamento, o modelo não apenas simula vitória/empate/derrota, mas gera placares reais de gols através da distribuição de Poisson (algoritmo clássico de Donald Knuth). As forças de ataque e defesa de cada clube são calculadas dinamicamente ao carregar a classificação a partir dos dados do campeonato, dividindo a taxa de gols por jogo do time pela média de gols por jogo de toda a liga (colunas manuais de ataque e defesa eventualmente presentes no CSV são desconsideradas em favor do cálculo dinâmico).
 
@@ -54,7 +58,7 @@ pip install -r requirements.txt
 
 ### Executar a Simulação Principal (CLI)
 
-Execução padrão (1.000 simulações com dados reais do Brasileirão, Top 6 para Libertadores e Z-4 para rebaixamento):
+Execução padrão (1.000 simulações com dados reais do Brasileirão 2023, Top 6 para Libertadores [Art. 6º REC/CBF] e Z-4 para rebaixamento [Art. 7º REC/CBF]):
 ```bash
 python3 src/main.py
 ```
@@ -147,13 +151,13 @@ Para evidenciar na prática que **"o melhor algoritmo depende do formato da entr
 | **radix** | 3.89 | 3.72 | 1.0× ($\mathcal{O}(k \cdot n)$ linear) |
 
 > **Discussão dos Resultados:**
-> 1. **Campeonato Real ($N = 20$):** O tempo total por simulação completa é de $\approx 0.10$ a $0.14$ ms (média de $\approx 0.11$ ms). A ordenação isolada consome cerca de $40\%$ desse tempo ($0.03$ a $0.06$ ms). A diferença entre o algoritmo mais rápido e o mais lento é de até $\approx 0.04$ ms por simulação, o que é imperceptível para o usuário final.
-> 2. **Ligas Médias ($N = 200$):** O Insertion Sort beneficia-se fortemente do arranjo inicial próximo do ordenado, exigindo pouquíssimas trocas locais ($0.24$ ms / ordenação). Merge ($0.56$ ms) e Quick ($0.59$ ms) mantêm comportamento assintótico muito próximo.
+> 1. **Campeonato Real ($N = 20$):** O tempo total por simulação completa varia de $0.09$ a $0.14$ ms (média de $\approx 0.11$ ms). A ordenação isolada consome cerca de $37\%$ desse tempo ($0.02$ a $0.06$ ms). A diferença entre o algoritmo mais rápido e o mais lento é de até $\approx 0.05$ ms por simulação, o que é imperceptível para o usuário final.
+> 2. **Ligas Médias ($N = 200$):** O Insertion Sort beneficia-se fortemente do arranjo inicial próximo do ordenado, exigindo pouquíssimas trocas locais ($0.23$ ms / ordenação). Merge ($0.63$ ms) e Quick ($0.60$ ms) mantêm comportamento assintótico muito próximo.
 > 3. **Grandes Cenários ($N = 2.000$) e ms / Ordenação:** Ao analisar isoladamente o tempo de ordenação (evitando o ruído da geração estocástica de gols no tempo total), nota-se que:
->    - **Na entrada quase ordenada do campeonato:** O Insertion Sort foi o mais rápido entre os de comparação ($2.74$ ms por ordenação), superando Merge ($7.67$ ms), Quick ($6.82$ ms) e Heap ($19.26$ ms). Isso ocorre porque uma tabela que já reflete 35 rodadas anteriores sofre poucas inversões com os jogos de 3 rodadas restantes ($\mathcal{O}(n + d)$, com poucas inversões $d$).
->    - **Na entrada totalmente embaralhada:** O Insertion Sort degrada para seu pior caso $\mathcal{O}(n^2)$ ($206.96$ ms, $71.8\times$ mais lento), enquanto Merge, Quick e Heap mantêm seus tempos em torno de $8$ a $16$ ms e o Radix em $\approx 3.7$ ms.
->    - **Radix vs Merge Sort e Crescimento:** O Radix LSD apresentou vantagem prática de aproximadamente $1.8\times$ frente ao Merge Sort em $N=2.000$ ($4.19$ ms vs $7.67$ ms). De $N=200$ para $N=2.000$, o crescimento medido foi de $\approx 13.7\times$ no Merge e $\approx 11.4\times$ no Radix, indicando um escalonamento proporcional e que nesta faixa de valores de $N$ o ganho reflete um fator constante vantajoso da implementação e contagem por dígitos em vez de uma separação estritamente assintótica.
-> 4. **Implementação em C vs Python Puro:** A linha de base `sorted_python` (Timsort em C) executa instruções nativas de máquina sem a sobrecarga do laço de interpretação do CPython, servindo como teto ótimo de desempenho.
+>    - **Na entrada quase ordenada do campeonato:** O Insertion Sort foi o mais rápido entre os de comparação ($2.88$ ms por ordenação), superando Merge ($7.70$ ms), Quick ($6.88$ ms) e Heap ($19.15$ ms). No cenário sintético avaliado, cada time joga 2 partidas restantes (2 jogos por equipe, totalizando $2.000$ jogos no torneio). Como a tabela inicial já vem ordenada pela pontuação prévia e poucas partidas são simuladas por time, ocorrem pouquíssimas trocas relativas de posição ($d \ll n^2$), o que permite ao Insertion Sort operar próximo do seu melhor caso linear $\mathcal{O}(n + d)$.
+>    - **Na entrada totalmente embaralhada:** O Insertion Sort degrada para seu pior caso $\mathcal{O}(n^2)$ ($206.96$ ms, $71.8\times$ mais lento), enquanto Merge ($9.96$ ms), Quick ($8.00$ ms) e Heap ($15.85$ ms) mantêm seus tempos em torno de $8$ a $16$ ms e o Radix em $3.72$ ms.
+>    - **Radix vs Merge Sort e Crescimento:** O Radix LSD apresentou vantagem prática de aproximadamente $1.8\times$ frente ao Merge Sort em $N=2.000$ ($4.29$ ms vs $7.70$ ms, com razão exata de $7.70 / 4.29 = 1.79\times \approx 1.8\times$). De $N=200$ para $N=2.000$, o crescimento medido foi de $\approx 12.2\times$ no Merge ($7.70 / 0.63$) e $\approx 11.6\times$ no Radix ($4.29 / 0.37$), com o Quick crescendo $\approx 11.5\times$ ($6.88 / 0.60$), indicando um escalonamento proporcional e que nesta faixa de valores de $N$ o ganho reflete um fator constante vantajoso da implementação e contagem por dígitos em vez de uma separação estritamente assintótica.
+> 4. **Implementação em C vs Python Puro:** A linha de base `sorted_python` (Timsort em C) executa instruções nativas de máquina sem a sobrecarga do laço de interpretação do CPython, servindo como teto ótimo de desempenho ($0.01$ ms em $N=20$, $0.13$ ms em $N=200$ e $1.56$ ms em $N=2.000$).
 
 ## Limitações do Modelo
 
@@ -186,3 +190,6 @@ tests/
   test_benchmark.py      Testes de geração sintética e esteira de benchmark
 requirements.txt         Dependências do projeto (pytest)
 ```
+
+## Link do vídeo : 
+[Apresentação ](https://youtu.be/oQQoGmyj5aU)

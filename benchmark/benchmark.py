@@ -189,6 +189,10 @@ def comparar_ja_ordenada_vs_embaralhada(n: int = 2000, seed: int = 42, repeticoe
     print("=" * 90 + "\n")
 
 
+# Alias para retrocompatibilidade
+comparar_quase_ordenada_vs_embaralhada = comparar_ja_ordenada_vs_embaralhada
+
+
 def imprimir_tabela_resumo(registros: list[RegistroBenchmark]) -> None:
     """Imprime uma tabela consolidada formatada em Markdown."""
     print("\n" + "=" * 115)
@@ -266,7 +270,7 @@ def imprimir_analise_teorica(registros: list[RegistroBenchmark]) -> None:
             t_ins = ord_ms["insertion"]
             outros_comp = [alg for alg in ["merge", "quick", "heap"] if alg in ord_ms and ord_ms[alg] > t_ins]
             if outros_comp:
-                nomes_comp = " e ".join(outros_comp)
+                nomes_comp = ", ".join(outros_comp[:-1]) + f" e {outros_comp[-1]}" if len(outros_comp) > 1 else outros_comp[0]
                 print(
                     f"   - Destaque: Quando a tabela de entrada está quase ordenada, o Insertion Sort executa "
                     f"em apenas {t_ins:.2f} ms (menos trocas locais), superando {nomes_comp}."
